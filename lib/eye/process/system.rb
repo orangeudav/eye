@@ -53,7 +53,7 @@ module Eye::Process::System
   end
 
   def execute(cmd, cfg = {})
-    defer{ Eye::System::execute cmd, cfg }
+    defer{ Eye::System::forked_execute cmd, cfg }
   end
 
 private

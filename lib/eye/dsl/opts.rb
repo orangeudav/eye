@@ -1,7 +1,7 @@
 class Eye::Dsl::Opts < Eye::Dsl::PureOpts
 
   STR_OPTIONS = [ :pid_file, :working_dir, :stdout, :stderr, :stdall, :start_command, 
-    :stop_command, :restart_command ]
+    :stop_command, :restart_command, :uid, :gid ]
 
   create_options_methods(STR_OPTIONS, String)
 

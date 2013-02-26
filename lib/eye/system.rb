@@ -43,10 +43,12 @@ module Eye::System
     #   :stdin, :stdout, :stderr
     def daemonize(cmd, cfg = {})
       opts = spawn_options(cfg)
-      pid  = Process::spawn(prepare_env(cfg), *Shellwords.shellwords(cmd), opts)
-      Process.detach(pid)
-      {:pid => pid}
       
+      pid = Process::spawn(prepare_env(cfg), *Shellwords.shellwords(cmd), opts)
+      Process.detach(pid)
+
+      {:pid => pid}
+
     rescue Errno::ENOENT, Errno::EACCES => ex
       {:error => ex}
     end
@@ -72,6 +74,14 @@ module Eye::System
 
     rescue Errno::ENOENT, Errno::EACCES => ex
       {:error => ex}
+    end
+
+    def forked_daemonize(cmd, cfg = {})
+      forked(cfg){ daemonize(cmd, cfg) }
+    end
+
+    def forked_execute(cmd, cfg = {})
+      forked(cfg){ execute(cmd, cfg) }
     end
 
     # get table
@@ -115,6 +125,49 @@ module Eye::System
     end
 
   private
+
+    def forked(config = {}, &block)
+      fork_with_result do
+        Celluloid.logger = nil
+        at_exit {} # celluloid hack
+
+        begin
+          uid = config[:uid]
+          gid = config[:gid]
+          uid_num = Etc.getpwnam(uid).uid if uid
+          gid_num = Etc.getpwnam(gid).gid if gid
+
+          ::Process.groups = [gid_num] if gid
+          ::Process::Sys.setgid(gid_num) if gid
+          ::Process::Sys.setuid(uid_num) if uid
+
+          yield        
+
+        rescue => ex
+          {:error => ex}
+        end
+      end
+    end
+
+    def fork_with_result(&block)
+      r,w = IO.pipe
+
+      fork do        
+        r.close
+
+        begin
+          w.write(Marshal.dump(yield))
+        ensure
+          w.close
+          exit
+        end
+      end
+
+      w.close
+      Marshal.load(r.read)
+    ensure
+      r.close
+    end
 
     def spawn_options(config = {})
       o = {}
