@@ -51,6 +51,7 @@ class Eye::Checker::Http < Eye::Checker
       http.get(@uri.path)
     end
 
+    debug res.inspect
     {:result => res}
 
   rescue Timeout::Error
